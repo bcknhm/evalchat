@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAGAS Evaluator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy: #0c446c;
+  --blue: #135a8a;
+  --mid: #1e7ab0;
+  --light: #5eb3df;
+  --pale: #eaf5fb;
+  --pale2: #f4f9fd;
+  --white: #ffffff;
+  --border: #c8dfe9;
+  --border2: #ddeef5;
+  --text: #1a2e3a;
+  --muted: #5a7a8a;
+  --muted2: #8aa4b0;
+  --amber: #c47b0a;
+  --amber-bg: #fef3d7;
+  --amber-border: #f0c060;
+  --green: #1a7a4a;
+  --green-bg: #e8f5ee;
+  --green-border: #80d4a8;
+  --red: #c0392b;
+  --red-bg: #fdecea;
+  --red-border: #f5a8a0;
+  --panel-bg: #f8fbfd;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+
+body { font-family: var(--sans); background: var(--pale2); color: var(--text); font-size: 14px; line-height: 1.5; min-height: 100vh; }
+
+/* LOGIN */
+#login-screen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, #e8f4fb 0%, #f4f9fd 60%, #edf6f0 100%);
+}
+.login-card {
+  background: var(--white); border: 1px solid var(--border); border-radius: 12px;
+  padding: 40px 44px; width: 360px; box-shadow: 0 2px 20px rgba(12,68,108,0.08);
+}
+.login-icon {
+  width: 52px; height: 52px; background: var(--navy); border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;
+}
+.login-icon svg { width: 24px; height: 24px; fill: white; }
+.login-card h1 { text-align: center; font-size: 20px; font-weight: 600; color: var(--navy); margin-bottom: 4px; }
+.login-card .subtitle { text-align: center; font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+.login-card label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+.login-card input[type="password"] {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px;
+  font-family: var(--mono); font-size: 14px; color: var(--text); background: var(--pale2);
+  outline: none; transition: border-color 0.15s;
+}
+.login-card input:focus { border-color: var(--mid); background: white; }
+.btn-primary {
+  width: 100%; margin-top: 16px; padding: 10px; background: var(--navy); color: white;
+  border: none; border-radius: 6px; font-family: var(--sans); font-size: 14px;
+  font-weight: 500; cursor: pointer; transition: background 0.15s;
+}
+.btn-primary:hover { background: var(--blue); }
+.login-hint { text-align: center; font-size: 12px; color: var(--muted2); margin-top: 14px; }
+
+/* APP SHELL */
+#app-screen { display: none; flex-direction: column; min-height: 100vh; position: relative; }
+header {
+  background: var(--navy); color: white; display: flex; align-items: center;
+  height: 52px; padding: 0 20px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0;
+}
+.header-logo { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+.header-logo .logo-box {
+  width: 30px; height: 30px; background: rgba(255,255,255,0.15); border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+}
+.header-logo .logo-box svg { width: 16px; height: 16px; fill: white; }
+.header-logo span { font-size: 15px; font-weight: 600; letter-spacing: 0.01em; }
+.header-logo small { font-size: 11px; font-weight: 400; opacity: 0.65; margin-left: 4px; }
+.tab-nav { display: flex; gap: 2px; }
+.tab-btn {
+  padding: 6px 16px; background: transparent; color: rgba(255,255,255,0.65);
+  border: 1px solid transparent; border-radius: 6px;
+  font-family: var(--sans); font-size: 13px; cursor: pointer; transition: all 0.15s;
+}
+.tab-btn:hover { color: white; background: rgba(255,255,255,0.08); }
+.tab-btn.active { color: white; background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.2); }
+
+.app-body { flex: 1; display: flex; overflow: hidden; }
+
+/* TAB CHAT */
+#tab-chat { display: flex; flex: 1; overflow: hidden; }
+
+.chat-pane {
+  width: 52%; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; background: white; overflow: hidden;
+}
+.chat-header {
+  padding: 12px 16px; border-bottom: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.chat-header .label { font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.model-badge {
+  font-family: var(--mono); font-size: 11px; background: var(--pale); color: var(--blue);
+  border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px;
+}
+
+.model-select {
+  font-family: var(--mono); font-size: 11px; color: var(--blue);
+  background: var(--pale); border: 1px solid var(--border);
+  border-radius: 4px; padding: 2px 6px 2px 8px;
+  outline: none; cursor: pointer; height: 24px;
+  transition: border-color 0.15s;
+}
+.model-select:hover { border-color: var(--mid); }
+.model-select:focus { border-color: var(--mid); }
+
+.eval-pane-header {
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0; background: var(--panel-bg);
+}
+.eval-pane-header .label { font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+.doc-delete-btn {
+  width: 24px; height: 24px; border-radius: 4px; flex-shrink: 0;
+  background: none; border: 1px solid transparent; color: var(--muted2);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s; margin-left: 6px;
+}
+.doc-delete-btn:hover { background: var(--red-bg); border-color: var(--red-border); color: var(--red); }
+.doc-delete-btn svg { width: 13px; height: 13px; fill: currentColor; pointer-events: none; }
+.messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.msg { display: flex; flex-direction: column; gap: 4px; }
+.msg-label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+.msg.user .msg-label { color: var(--muted); text-align: right; }
+.msg.bot .msg-label { color: var(--muted); }
+.msg-bubble { padding: 10px 14px; border-radius: 8px; font-size: 14px; line-height: 1.6; max-width: 92%; }
+.msg.user { align-items: flex-end; }
+.msg.user .msg-bubble { background: var(--navy); color: white; }
+.msg.bot .msg-bubble { background: var(--pale); color: var(--text); border: 1px solid var(--border2); }
+.msg-source { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 3px; }
+.thinking-indicator {
+  display: flex; align-items: center; gap: 6px; padding: 10px 14px;
+  background: var(--pale); border: 1px solid var(--border2); border-radius: 8px;
+  max-width: 120px; color: var(--muted); font-size: 13px;
+}
+.dots { display: flex; gap: 3px; }
+.dots span { width: 5px; height: 5px; background: var(--light); border-radius: 50%; animation: blink 1.2s infinite; }
+.dots span:nth-child(2) { animation-delay: 0.2s; }
+.dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink { 0%,80%,100%{opacity:0.3} 40%{opacity:1} }
+.chat-input-area { flex-shrink: 0; border-top: 1px solid var(--border); padding: 12px 16px; background: white; }
+.input-row { display: flex; gap: 8px; }
+.chat-input-area textarea {
+  flex: 1; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px;
+  font-family: var(--sans); font-size: 14px; color: var(--text); resize: none; height: 38px;
+  overflow: hidden; background: var(--pale2); outline: none; transition: border-color 0.15s;
+}
+.chat-input-area textarea:focus { border-color: var(--mid); background: white; }
+.btn-send {
+  padding: 0 16px; height: 38px; background: var(--blue); color: white; border: none;
+  border-radius: 6px; font-family: var(--sans); font-size: 13px; font-weight: 500;
+  cursor: pointer; white-space: nowrap; transition: background 0.15s;
+  display: flex; align-items: center; gap: 6px;
+}
+.btn-send:hover { background: var(--navy); }
+.btn-send svg { width: 14px; height: 14px; fill: white; }
+.new-chat-btn {
+  display: block; width: 100%; margin-top: 8px; padding: 5px;
+  background: none; border: 1px solid var(--border); border-radius: 5px; color: var(--muted);
+  font-family: var(--sans); font-size: 12px; cursor: pointer; transition: all 0.12s;
+}
+.new-chat-btn:hover { background: var(--pale2); color: var(--text); }
+
+/* Eval pane */
+.eval-pane { flex: 1; overflow-y: auto; display: flex; flex-direction: column; background: var(--panel-bg); }
+.eval-section { border-bottom: 1px solid var(--border); padding: 14px 16px; }
+.eval-section:last-child { border-bottom: none; }
+.section-title {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--muted); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.section-title .dot { width: 6px; height: 6px; border-radius: 50%; }
+.dot-amber { background: var(--amber); }
+.dot-blue { background: var(--mid); }
+.dot-green { background: var(--green); }
+
+/* Score cards */
+.score-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.score-card { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.score-card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 5px; }
+.metric-name { font-size: 11px; color: var(--muted); line-height: 1.3; }
+.info-btn {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: none; border: 1px solid var(--border2);
+  color: var(--muted2); font-size: 10px; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all 0.15s; font-family: var(--sans); margin-top: 1px;
+}
+.info-btn:hover { border-color: var(--mid); color: var(--mid); background: var(--pale); }
+.info-btn.active { border-color: var(--mid); color: var(--mid); background: var(--pale); }
+.metric-val { font-family: var(--mono); font-size: 22px; font-weight: 500; }
+.score-card.high .metric-val { color: var(--green); }
+.score-card.mid  .metric-val { color: var(--amber); }
+.score-card.low  .metric-val { color: var(--red); }
+.score-bar { height: 4px; border-radius: 2px; background: var(--border); margin-top: 6px; overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+.high .score-bar-fill { background: var(--green); }
+.mid  .score-bar-fill { background: var(--amber); }
+.low  .score-bar-fill { background: var(--red); }
+.metric-label { font-size: 10px; color: var(--muted2); margin-top: 4px; }
+
+/* Score explanation */
+.score-explanation { overflow: hidden; max-height: 0; transition: max-height 0.28s ease, opacity 0.2s ease; opacity: 0; }
+.score-explanation.open { max-height: 220px; opacity: 1; }
+.score-explanation-inner { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border2); }
+.score-explanation-inner p { font-size: 11px; color: var(--muted); line-height: 1.6; margin-bottom: 5px; }
+.score-explanation-inner p:last-child { margin-bottom: 0; }
+.score-formula {
+  font-family: var(--mono); font-size: 10px; color: var(--blue);
+  background: var(--pale); border: 1px solid var(--border2);
+  border-radius: 4px; padding: 5px 8px; margin-top: 5px;
+}
+.score-range { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
+.range-pill { font-size: 10px; font-family: var(--mono); padding: 2px 6px; border-radius: 3px; }
+.range-good { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.range-mid  { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+.range-low  { background: var(--red-bg);   color: var(--red);   border: 1px solid var(--red-border); }
+
+/* Eval chunks */
+.chunks-list { display: flex; flex-direction: column; gap: 8px; }
+.chunk-item { background: white; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; }
+.chunk-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.chunk-num {
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  background: var(--pale); color: var(--blue); border: 1px solid var(--border);
+  border-radius: 3px; padding: 1px 5px;
+}
+.chunk-doc { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.chunk-score {
+  margin-left: auto; font-family: var(--mono); font-size: 11px;
+  color: var(--amber); background: var(--amber-bg);
+  border: 1px solid var(--amber-border); border-radius: 3px; padding: 1px 6px;
+}
+.chunk-text { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.chunk-item { cursor: pointer; }
+.chunk-item:hover { background: var(--pale2); }
+
+/* System Prompt */
+.prompt-box {
+  background: #1a2e3a; border: 1px solid #2a4555; border-radius: 6px;
+  padding: 12px 14px; font-family: var(--mono); font-size: 12px;
+  color: #8bbdd4; line-height: 1.7; overflow-x: auto;
+}
+.prompt-box .kw { color: #5eb3df; }
+.prompt-box .str { color: #a8d8a8; }
+.prompt-box .cmt { color: #4a6a7a; }
+
+.eval-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px 20px; color: var(--muted2); gap: 10px; text-align: center;
+}
+.eval-empty svg { width: 32px; height: 32px; opacity: 0.35; }
+.eval-empty p { font-size: 13px; }
+
+/* TAB DOCS */
+#tab-docs { display: none; flex: 1; overflow-y: auto; padding: 20px; background: var(--pale2); }
+.docs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; margin-bottom: 20px; }
+
+.panel { background: white; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.panel-header {
+  padding: 12px 16px; border-bottom: 1px solid var(--border2);
+  display: flex; align-items: center; gap: 8px;
+}
+.panel-header h3 { font-size: 13px; font-weight: 600; color: var(--navy); }
+.panel-header .panel-meta { margin-left: auto; font-size: 11px; font-family: var(--mono); color: var(--muted2); }
+.panel-body { padding: 16px; }
+
+.panel-toggle {
+  margin-left: auto; width: 22px; height: 22px; border-radius: 4px;
+  background: none; border: 1px solid var(--border2); color: var(--muted2);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; flex-shrink: 0;
+}
+.panel-toggle:hover { background: var(--pale); border-color: var(--mid); color: var(--mid); }
+.panel-toggle svg { width: 12px; height: 12px; transition: transform 0.2s ease; }
+.panel-toggle.collapsed svg { transform: rotate(-90deg); }
+
+.panel-collapsible {
+  overflow: hidden;
+  max-height: 600px;
+  transition: max-height 0.28s ease, opacity 0.2s ease;
+  opacity: 1;
+}
+.panel-collapsible.collapsed { max-height: 0; opacity: 0; }
+
+.upload-zone {
+  border: 2px dashed var(--border); border-radius: 8px; padding: 28px 20px;
+  text-align: center; cursor: pointer; transition: all 0.15s; background: var(--pale2);
+}
+.upload-zone:hover { border-color: var(--mid); background: var(--pale); }
+.upload-icon {
+  width: 40px; height: 40px; margin: 0 auto 10px; background: var(--pale);
+  border: 1px solid var(--border); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.upload-icon svg { width: 18px; height: 18px; fill: var(--mid); }
+.upload-zone h4 { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+.upload-zone p { font-size: 12px; color: var(--muted); }
+.file-types { display: flex; justify-content: center; gap: 6px; margin-top: 10px; }
+.file-badge {
+  font-family: var(--mono); font-size: 11px; background: var(--pale); color: var(--blue);
+  border: 1px solid var(--border); border-radius: 3px; padding: 2px 7px;
+}
+.doc-list { display: flex; flex-direction: column; }
+.doc-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+  border-bottom: 1px solid var(--border2); cursor: pointer; transition: background 0.1s;
+}
+.doc-item:last-child { border-bottom: none; }
+.doc-item:hover { background: var(--pale2); }
+.doc-item.selected { background: var(--pale); }
+.doc-icon {
+  width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center;
+  justify-content: center; font-family: var(--mono); font-size: 9px; font-weight: 600; flex-shrink: 0;
+}
+.doc-icon.md { background: #e8f3ff; color: #1060a0; }
+.doc-icon.pdf { background: #fdecea; color: #c0392b; }
+.doc-info { flex: 1; min-width: 0; }
+.doc-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.doc-meta { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 1px; }
+.doc-chunks {
+  font-family: var(--mono); font-size: 11px; color: var(--muted2);
+  background: var(--pale2); border: 1px solid var(--border); border-radius: 3px; padding: 2px 6px; white-space: nowrap;
+}
+
+/* Chunking params */
+.param-row { margin-bottom: 16px; }
+.param-row:last-child { margin-bottom: 0; }
+.param-label { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.param-label span { font-size: 13px; font-weight: 500; color: var(--text); }
+.param-label code {
+  font-family: var(--mono); font-size: 13px; color: var(--blue);
+  background: var(--pale); border: 1px solid var(--border); border-radius: 3px; padding: 1px 6px;
+}
+input[type="range"] {
+  -webkit-appearance: none; width: 100%; height: 4px;
+  background: var(--border2); border-radius: 2px; outline: none; cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--blue); border: 2px solid white; box-shadow: 0 0 0 2px var(--border);
+}
+.param-hint { font-size: 11px; color: var(--muted2); margin-top: 5px; }
+.splitter-select {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+  font-family: var(--sans); font-size: 13px; color: var(--text); background: var(--pale2); outline: none; cursor: pointer;
+}
+.action-row { display: flex; gap: 8px; margin-top: 16px; }
+.btn-secondary {
+  padding: 7px 14px; background: none; color: var(--blue); border: 1px solid var(--border);
+  border-radius: 5px; font-family: var(--sans); font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all 0.12s; flex: 1; text-align: center;
+}
+.btn-secondary:hover { background: var(--pale); border-color: var(--mid); }
+.btn-danger {
+  padding: 7px 14px; background: none; color: var(--red); border: 1px solid var(--red-border);
+  border-radius: 5px; font-family: var(--sans); font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all 0.12s; flex: 1; text-align: center;
+}
+.btn-danger:hover { background: var(--red-bg); }
+.stat-bar {
+  display: flex; gap: 16px; padding: 10px 16px;
+  border-top: 1px solid var(--border2); background: var(--pale2);
+}
+.stat-item { font-size: 12px; color: var(--muted); }
+.stat-item strong { color: var(--navy); font-weight: 600; }
+.embed-preview {
+  background: var(--pale2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 12px; margin-top: 12px; font-family: var(--mono); font-size: 11px; color: var(--muted);
+}
+.chunk-vis { display: flex; gap: 2px; margin: 8px 0; flex-wrap: wrap; }
+.chunk-block {
+  height: 28px; border-radius: 3px; display: flex; align-items: center;
+  justify-content: center; font-size: 9px; font-weight: 600; transition: width 0.3s;
+}
+.cb-text { background: var(--pale); border: 1px solid var(--border); color: var(--blue); }
+.cb-overlap { background: var(--amber-bg); border: 1px solid var(--amber-border); color: var(--amber); }
+
+/* Chunk Browser */
+.chunk-browser-filters {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-bottom: 1px solid var(--border2); background: var(--pale2);
+  flex-wrap: wrap;
+}
+.filter-label { font-size: 11px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+.doc-filter-btn {
+  padding: 3px 10px; border-radius: 4px; border: 1px solid var(--border);
+  background: white; color: var(--muted); font-family: var(--sans); font-size: 12px;
+  cursor: pointer; transition: all 0.12s;
+}
+.doc-filter-btn:hover { border-color: var(--mid); color: var(--mid); }
+.doc-filter-btn.active { background: var(--pale); border-color: var(--mid); color: var(--blue); font-weight: 500; }
+.cb-showing { margin-left: auto; font-size: 11px; font-family: var(--mono); color: var(--muted2); }
+
+.cb-list { max-height: 400px; overflow-y: auto; }
+.cb-row { display: flex; border-bottom: 1px solid var(--border2); transition: background 0.1s; }
+.cb-row:last-child { border-bottom: none; }
+.cb-row:hover { background: var(--pale2); }
+.cb-gutter {
+  width: 76px; flex-shrink: 0; padding: 10px 12px;
+  border-right: 1px solid var(--border2);
+  display: flex; flex-direction: column; gap: 4px; align-items: flex-start;
+}
+.cb-idx {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  color: var(--blue); background: var(--pale); border: 1px solid var(--border);
+  border-radius: 3px; padding: 1px 5px;
+}
+.cb-chars { font-family: var(--mono); font-size: 10px; color: var(--muted2); }
+.cb-content { flex: 1; padding: 10px 14px; font-size: 12px; color: var(--muted); line-height: 1.6; min-width: 0; }
+.cb-doc-tag {
+  font-size: 10px; font-family: var(--mono); color: var(--mid);
+  background: var(--pale); border: 1px solid var(--border2);
+  border-radius: 3px; padding: 1px 5px; display: inline-block; margin-bottom: 4px;
+}
+.cb-ov-tag {
+  font-size: 10px; font-family: var(--mono); color: var(--amber);
+  background: var(--amber-bg); border: 1px solid var(--amber-border);
+  border-radius: 3px; padding: 1px 5px; display: inline-block; margin-left: 4px; margin-bottom: 4px;
+}
+
+.reindex-notice {
+  display: none; align-items: center; gap: 8px; padding: 8px 16px;
+  background: var(--amber-bg); border-bottom: 1px solid var(--amber-border);
+  font-size: 12px; color: var(--amber);
+}
+.reindex-notice.show { display: flex; }
+.reindex-notice .reindex-btn {
+  margin-left: auto; padding: 3px 12px; background: var(--amber); color: white;
+  border: none; border-radius: 4px; font-family: var(--sans); font-size: 11px;
+  cursor: pointer; white-space: nowrap;
+}
+
+/* Chunk detail modal */
+.modal-backdrop {
+  display: none;
+  position: absolute; inset: 0;
+  background: rgba(12, 44, 68, 0.45);
+  z-index: 200;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 60px 24px 24px;
+}
+.modal-backdrop.open { display: flex; }
+.modal-card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: 10px; width: 100%; max-width: 640px;
+  overflow: hidden;
+}
+.modal-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-bottom: 1px solid var(--border2);
+  background: var(--pale2);
+}
+.modal-header h4 { font-size: 13px; font-weight: 600; color: var(--navy); margin-right: auto; }
+.modal-close {
+  width: 24px; height: 24px; border-radius: 5px;
+  background: none; border: 1px solid var(--border);
+  color: var(--muted); font-size: 14px; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s; font-family: var(--sans);
+}
+.modal-close:hover { background: var(--pale); border-color: var(--mid); color: var(--navy); }
+.modal-meta {
+  display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 16px;
+  border-bottom: 1px solid var(--border2); background: var(--pale2);
+}
+.modal-body {
+  padding: 16px;
+  max-height: 420px; overflow-y: auto;
+}
+.modal-body pre {
+  font-family: var(--mono); font-size: 12px; color: var(--text);
+  line-height: 1.7; white-space: pre-wrap; word-break: break-word;
+  background: var(--pale2); border: 1px solid var(--border2);
+  border-radius: 6px; padding: 14px;
+}
+.modal-ov-section { margin-top: 12px; }
+.modal-ov-label {
+  font-size: 11px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--amber); margin-bottom: 6px;
+}
+.modal-ov-text {
+  font-family: var(--mono); font-size: 12px; color: var(--text);
+  line-height: 1.7; white-space: pre-wrap; word-break: break-word;
+  background: var(--amber-bg); border: 1px solid var(--amber-border);
+  border-radius: 6px; padding: 14px;
+}
+.cb-row { cursor: pointer; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 1C8.676 1 6 3.676 6 7v1H4v15h16V8h-2V7c0-3.324-2.676-6-6-6zm0 2c2.276 0 4 1.724 4 4v1H8V7c0-2.276 1.724-4 4-4zm0 9a2 2 0 0 1 1 3.732V18h-2v-2.268A2 2 0 0 1 12 12z"/></svg>
+    </div>
+    <h1>RAGAS Evaluator</h1>
+    <p class="subtitle">Edukatives RAG-Demonstrationssystem</p>
+    <label>Passwort</label>
+    <input type="password" id="pw-input" placeholder="Zugangspasswort eingeben" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button class="btn-primary" onclick="doLogin()">Anmelden</button>
+    <p class="login-hint">Demomodus: beliebiges Passwort eingeben</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen">
+  <header>
+    <div class="header-logo">
+      <div class="logo-box">
+        <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      </div>
+      <span>RAGAS Evaluator <small>/ rag demo</small></span>
+    </div>
+    <nav class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('chat',this)">Chat &amp; Evaluation</button>
+      <button class="tab-btn" onclick="switchTab('docs',this)">Dokumente</button>
+    </nav>
+  </header>
+
+  <div class="app-body">
+
+    <!-- TAB CHAT -->
+    <div id="tab-chat">
+      <div class="chat-pane">
+        <div class="chat-header">
+          <span class="label">Chat</span>
+          <select class="model-select" id="chat-model">
+            <option value="gpt-4o-mini" selected>gpt-4o-mini</option>
+            <option value="gpt-4o">gpt-4o</option>
+            <option value="gpt-4-turbo">gpt-4-turbo</option>
+            <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+          </select>
+        </div>
+        <div class="messages" id="messages">
+          <div class="msg bot">
+            <span class="msg-label">Assistent</span>
+            <div class="msg-bubble">Willkommen! Stell mir eine Frage zu den hochgeladenen Dokumenten. Ich antworte auf Basis der relevanten Chunks, RAGAS bewertet anschliessend die Antwort.</div>
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <div class="input-row">
+            <textarea id="chat-input" placeholder="Frage zu den Dokumenten..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"></textarea>
+            <button class="btn-send" onclick="sendMsg()">
+              <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+              Senden
+            </button>
+          </div>
+          <button class="new-chat-btn" onclick="clearChat()">+ Neuer Chat</button>
+        </div>
+      </div>
+
+      <!-- EVAL PANE -->
+      <div class="eval-pane" id="eval-pane">
+        <div class="eval-pane-header">
+          <span class="label">Evaluation</span>
+          <select class="model-select" id="eval-model">
+            <option value="gpt-4o-mini" selected>gpt-4o-mini</option>
+            <option value="gpt-4o">gpt-4o</option>
+            <option value="gpt-4-turbo">gpt-4-turbo</option>
+            <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+          </select>
+        </div>
+        <div class="eval-empty" id="eval-empty">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14l4-4h12c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+          <p>RAGAS-Scores erscheinen hier<br>nach der ersten Antwort</p>
+        </div>
+        <div id="eval-content" style="display:none;">
+
+          <div class="eval-section">
+            <div class="section-title"><span class="dot dot-amber"></span>RAGAS Scores</div>
+            <div class="score-grid">
+
+              <!-- Faithfulness -->
+              <div class="score-card high" id="sc-faithfulness">
+                <div class="score-card-top">
+                  <div class="metric-name">Faithfulness</div>
+                  <button class="info-btn" onclick="toggleExpl(this,'faithfulness')">?</button>
+                </div>
+                <div class="metric-val" id="sv-faithfulness">0.92</div>
+                <div class="score-bar"><div class="score-bar-fill" id="sb-faithfulness" style="width:92%"></div></div>
+                <div class="metric-label">Antwort durch Kontext belegt?</div>
+                <div class="score-explanation" id="ex-faithfulness">
+                  <div class="score-explanation-inner">
+                    <p>Misst, ob alle Aussagen in der generierten Antwort durch den bereitgestellten Kontext belegbar sind. Halluzinationen senken diesen Score.</p>
+                    <p>RAGAS zerlegt die Antwort in Einzelaussagen und pruft jede gegen die Chunks.</p>
+                    <div class="score-formula">score = belegte Aussagen / Aussagen gesamt</div>
+                    <div class="score-range">
+                      <span class="range-pill range-good">&ge; 0.8 gut</span>
+                      <span class="range-pill range-mid">0.5 &ndash; 0.8</span>
+                      <span class="range-pill range-low">&lt; 0.5 schlecht</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Answer Relevancy -->
+              <div class="score-card high" id="sc-relevancy">
+                <div class="score-card-top">
+                  <div class="metric-name">Answer Relevancy</div>
+                  <button class="info-btn" onclick="toggleExpl(this,'relevancy')">?</button>
+                </div>
+                <div class="metric-val" id="sv-relevancy">0.88</div>
+                <div class="score-bar"><div class="score-bar-fill" id="sb-relevancy" style="width:88%"></div></div>
+                <div class="metric-label">Wie relevant ist die Antwort?</div>
+                <div class="score-explanation" id="ex-relevancy">
+                  <div class="score-explanation-inner">
+                    <p>Bewertet, ob die Antwort die gestellte Frage direkt adressiert. Vage oder ausweichende Antworten werden bestraft, selbst wenn sie faktisch korrekt sind.</p>
+                    <p>Das LLM generiert aus der Antwort mehrere Ruckfragen und vergleicht deren Embeddings mit der Originalfrage per Cosine-Similaritat.</p>
+                    <div class="score-formula">score = avg cosine_sim(q_orig, q_gen_i)</div>
+                    <div class="score-range">
+                      <span class="range-pill range-good">&ge; 0.8 gut</span>
+                      <span class="range-pill range-mid">0.5 &ndash; 0.8</span>
+                      <span class="range-pill range-low">&lt; 0.5 schlecht</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Context Precision -->
+              <div class="score-card mid" id="sc-precision">
+                <div class="score-card-top">
+                  <div class="metric-name">Context Precision</div>
+                  <button class="info-btn" onclick="toggleExpl(this,'precision')">?</button>
+                </div>
+                <div class="metric-val" id="sv-precision">0.71</div>
+                <div class="score-bar"><div class="score-bar-fill" id="sb-precision" style="width:71%"></div></div>
+                <div class="metric-label">Relevanz der Chunks</div>
+                <div class="score-explanation" id="ex-precision">
+                  <div class="score-explanation-inner">
+                    <p>Pruft, ob die abgerufenen Chunks uberwiegend relevant fuer die Frage sind. Irrelevante Chunks im Kontext senken diesen Wert.</p>
+                    <p>Bewertet die Qualitat des Retrievers: Werden die richtigen Passagen geholt, oder wird viel Rauschen mitgeliefert?</p>
+                    <div class="score-formula">score = relevante Chunks / Chunks gesamt</div>
+                    <div class="score-range">
+                      <span class="range-pill range-good">&ge; 0.8 gut</span>
+                      <span class="range-pill range-mid">0.5 &ndash; 0.8</span>
+                      <span class="range-pill range-low">&lt; 0.5 schlecht</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Context Recall -->
+              <div class="score-card mid" id="sc-recall">
+                <div class="score-card-top">
+                  <div class="metric-name">Context Recall</div>
+                  <button class="info-btn" onclick="toggleExpl(this,'recall')">?</button>
+                </div>
+                <div class="metric-val" id="sv-recall">0.75</div>
+                <div class="score-bar"><div class="score-bar-fill" id="sb-recall" style="width:75%"></div></div>
+                <div class="metric-label">Vollstandigkeit des Kontexts</div>
+                <div class="score-explanation" id="ex-recall">
+                  <div class="score-explanation-inner">
+                    <p>Beantwortet die Frage: Enthalt der abgerufene Kontext alle Informationen, die fuer eine vollstandige Antwort notig waren?</p>
+                    <p>Erfordert eine Ground-Truth-Antwort. RAGAS pruft, welcher Anteil der Ground-Truth-Aussagen durch die Chunks abgedeckt wird.</p>
+                    <div class="score-formula">score = GT-Aussagen in Kontext / GT-Aussagen gesamt</div>
+                    <div class="score-range">
+                      <span class="range-pill range-good">&ge; 0.8 gut</span>
+                      <span class="range-pill range-mid">0.5 &ndash; 0.8</span>
+                      <span class="range-pill range-low">&lt; 0.5 schlecht</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="eval-section">
+            <div class="section-title"><span class="dot dot-blue"></span>Herangezogene Chunks</div>
+            <div class="chunks-list" id="eval-chunks-list"></div>
+          </div>
+
+          <div class="eval-section">
+            <div class="section-title"><span class="dot dot-green"></span>System Prompt</div>
+            <div class="prompt-box">
+              <span class="cmt"># System Prompt</span><br>
+              Du bist ein hilfreicher Assistent. Beantworte<br>
+              Fragen <span class="kw">ausschliesslich</span> auf Basis des<br>
+              bereitgestellten Kontexts.<br><br>
+              <span class="kw">Kontext</span>:<br>
+              <span class="str">{context}</span><br><br>
+              Falls die Frage nicht aus dem Kontext<br>
+              beantwortet werden kann, antworte:<br>
+              <span class="str">"Diese Information ist nicht in den Dokumenten enthalten."</span><br><br>
+              <span class="cmt"># Nutzerfrage</span><br>
+              <span class="str">{question}</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB DOCS -->
+    <div id="tab-docs">
+      <div style="width:100%">
+
+        <div class="docs-grid">
+          <!-- Left -->
+          <div>
+            <div class="panel" style="margin-bottom:16px">
+              <div class="panel-header" style="cursor:pointer" onclick="togglePanel('upload')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--mid)"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+                <h3>Dokument hochladen</h3>
+                <button class="panel-toggle" id="toggle-upload" onclick="event.stopPropagation();togglePanel('upload')">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                </button>
+              </div>
+              <div class="panel-collapsible" id="body-upload">
+              <div class="panel-body">
+                <div class="upload-zone" onclick="simulateUpload()">
+                  <div class="upload-icon">
+                    <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+                  </div>
+                  <h4>Dateien ablegen oder klicken</h4>
+                  <p>Markdown- und PDF-Dokumente, max. 10 MB</p>
+                  <div class="file-types">
+                    <span class="file-badge">.md</span>
+                    <span class="file-badge">.pdf</span>
+                  </div>
+                </div>
+              </div>
+              </div><!-- /panel-collapsible upload -->
+            </div>
+            <div class="panel">
+              <div class="panel-header">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--mid)"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
+                <h3>Hochgeladene Dokumente</h3>
+              </div>
+              <div class="doc-list">
+                <div class="doc-item selected">
+                  <div class="doc-icon md">MD</div>
+                  <div class="doc-info">
+                    <div class="doc-name">server-dokumentation.md</div>
+                    <div class="doc-meta">8.2 KB &middot; 2026-03-29</div>
+                  </div>
+                  <span class="doc-chunks" id="dc-server">14 chunks</span>
+                  <button class="doc-delete-btn" onclick="deleteDoc(this,'server-dokumentation.md')" title="Dokument loschen">
+                    <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                  </button>
+                </div>
+                <div class="doc-item">
+                  <div class="doc-icon md">MD</div>
+                  <div class="doc-info">
+                    <div class="doc-name">rag-chatbot-prompt.md</div>
+                    <div class="doc-meta">5.6 KB &middot; 2026-03-29</div>
+                  </div>
+                  <span class="doc-chunks" id="dc-rag">11 chunks</span>
+                  <button class="doc-delete-btn" onclick="deleteDoc(this,'rag-chatbot-prompt.md')" title="Dokument loschen">
+                    <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="stat-bar">
+                <div class="stat-item"><strong>2</strong> Dokumente</div>
+                <div class="stat-item"><strong id="total-chunks-stat">25</strong> Chunks gesamt</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right -->
+          <div>
+            <div class="panel" style="margin-bottom:16px">
+              <div class="panel-header" style="cursor:pointer" onclick="togglePanel('chunking')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--mid)"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                <h3>Chunking-Parameter</h3>
+                <button class="panel-toggle" id="toggle-chunking" onclick="event.stopPropagation();togglePanel('chunking')">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                </button>
+              </div>
+              <div class="panel-collapsible" id="body-chunking">
+              <div class="panel-body">
+                <div class="param-row">
+                  <div class="param-label">
+                    <span>Chunk-Grosse</span>
+                    <code id="cs-val">1000</code>
+                  </div>
+                  <input type="range" min="200" max="3000" step="100" value="1000" id="chunk-size" oninput="updateChunkVis()">
+                  <div class="param-hint">Zeichen pro Chunk (Tokens &asymp; Wert / 4)</div>
+                </div>
+                <div class="param-row">
+                  <div class="param-label">
+                    <span>Overlap</span>
+                    <code id="ov-val">200</code>
+                  </div>
+                  <input type="range" min="0" max="600" step="50" value="200" id="overlap" oninput="updateChunkVis()">
+                  <div class="param-hint">Uberlappung zwischen aufeinanderfolgenden Chunks</div>
+                </div>
+                <div class="param-row">
+                  <div class="param-label"><span>Splitter-Strategie</span></div>
+                  <select class="splitter-select" onchange="updateChunkVis()">
+                    <option selected>RecursiveCharacterTextSplitter</option>
+                    <option>CharacterTextSplitter</option>
+                    <option>MarkdownHeaderTextSplitter</option>
+                    <option>TokenTextSplitter</option>
+                  </select>
+                </div>
+                <div class="embed-preview">
+                  <div style="color:var(--muted2);margin-bottom:4px;">Schematische Aufteilung</div>
+                  <div class="chunk-vis" id="chunk-vis"></div>
+                  <div style="display:flex;gap:12px;margin-top:6px;">
+                    <span style="display:flex;align-items:center;gap:4px;">
+                      <span style="width:8px;height:8px;background:var(--pale);border:1px solid var(--border);border-radius:1px;display:inline-block;"></span> Chunk-Text
+                    </span>
+                    <span style="display:flex;align-items:center;gap:4px;">
+                      <span style="width:8px;height:8px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:1px;display:inline-block;"></span> Overlap
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div><!-- /panel-collapsible chunking -->
+            <div class="panel">
+              <div class="panel-header">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--muted)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                <h3>Administration</h3>
+              </div>
+              <div class="panel-body">
+                <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Neu-Indexierung wendet die aktuellen Chunking-Parameter auf alle Dokumente an.</div>
+                <div class="action-row">
+                  <button class="btn-secondary" onclick="reindexAll()">Alle neu indexieren</button>
+                  <button class="btn-danger" onclick="showToast('Vektor-Speicher wurde geleert.',true)">Vektoren leeren</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CHUNK BROWSER -->
+        <div class="panel">
+          <div class="panel-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--mid)"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            <h3>Chunk-Browser</h3>
+            <span class="panel-meta" id="cb-meta">25 Chunks &middot; chunk_size=1000 &middot; overlap=200</span>
+          </div>
+          <div class="reindex-notice" id="reindex-notice">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+            Parameter geandert &mdash; Chunk-Browser zeigt noch den letzten indexierten Stand.
+            <button class="reindex-btn" onclick="reindexAll()">Jetzt neu indexieren</button>
+          </div>
+          <div class="chunk-browser-filters">
+            <span class="filter-label">Filter:</span>
+            <button class="doc-filter-btn active" onclick="setCbFilter('all',this)">Alle</button>
+            <button class="doc-filter-btn" onclick="setCbFilter('server',this)">server-dokumentation.md</button>
+            <button class="doc-filter-btn" onclick="setCbFilter('rag',this)">rag-chatbot-prompt.md</button>
+            <span class="cb-showing" id="cb-showing">25 von 25</span>
+          </div>
+          <div class="cb-list" id="cb-list"></div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- CHUNK DETAIL MODAL -->
+<div class="modal-backdrop" id="chunk-modal" onclick="closeChunkModal(event)">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h4 id="modal-title">Chunk #1</h4>
+      <span id="modal-doc-tag" class="cb-doc-tag" style="margin:0"></span>
+      <button class="modal-close" onclick="closeChunkModal()" title="Schliessen">&times;</button>
+    </div>
+    <div class="modal-meta" id="modal-meta"></div>
+    <div class="modal-body">
+      <pre id="modal-text"></pre>
+      <div class="modal-ov-section" id="modal-ov-section" style="display:none">
+        <div class="modal-ov-label">Overlap mit vorherigem Chunk</div>
+        <div class="modal-ov-text" id="modal-ov-text"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy);color:white;padding:10px 20px;border-radius:8px;font-size:13px;opacity:0;transition:all 0.25s;z-index:9999;pointer-events:none;"></div>
+
+<script>
+// Source text corpus (representative excerpts from the two documents)
+const SOURCES = {
+  server: {
+    label: 'server-dokumentation.md',
+    text: `# Technische Dokumentation VPS bstlr.eu ## Server-Uebersicht Provider: Strato | Hostname: ubuntu | OS: Ubuntu 22.04 LTS | IPv4: 87.106.83.40 | IPv6: 2a01:239:45a:7a00::1 | Domain: bstlr.eu ## Benutzer root: Deaktiviert fuer SSH. srvworker: Admin-User, Shell /bin/bash, Sudo ja. ## Netzwerk DNS A @ 87.106.83.40 TTL 3600. A * 87.106.83.40. AAAA @ 2a01:239:45a:7a00::1. AAAA * 2a01:239:45a:7a00::1. ## Firewall ufw Port 22 TCP SSH. Port 80 TCP HTTP. Port 443 TCP HTTPS. Status: aktiv. sudo ufw status. sudo ufw allow PORT/tcp. sudo ufw delete allow PORT/tcp. ## SSH Konfiguration Datei: /etc/ssh/sshd_config.d/hardening.conf PermitRootLogin no. PasswordAuthentication no. PubkeyAuthentication yes. X11Forwarding no. MaxAuthTries 3. ## Autorisierte Keys /home/srvworker/.ssh/authorized_keys ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIgUSPwlW01tZbbCgLV25yNEjiSpBVMruG69zUN3zkO+ ## Fail2ban Status: aktiv. /etc/fail2ban/jail.local [sshd] enabled = true. maxretry = 3. bantime = 3600. findtime = 600. sudo fail2ban-client status sshd. sudo fail2ban-client set sshd unbanip IP. ## Docker Installation Docker CE Community Edition. Docker Compose Plugin v2. docker ps. docker ps -a. docker logs container-name. docker compose restart. ## Docker-Netzwerke proxy: Verbindung NPM und Apps. docker network ls. ## Verzeichnisstruktur /home/srvworker/docker/nginx-proxy-manager/ docker-compose.yml data/ letsencrypt/ /home/srvworker/backups/ ## nginx-proxy-manager Image: jc21/nginx-proxy-manager:latest. Container-Name: nginx-proxy-manager. Status: running. Restart-Policy: unless-stopped. Ports: 80:80 0.0.0.0. 443:443 0.0.0.0. 81:81 127.0.0.1 nur lokal. Volumes: ./data:/data. ./letsencrypt:/etc/letsencrypt. ## Proxy Hosts NPM npm.bstlr.eu -> 127.0.0.1:81. SSL: Lets Encrypt. ## SSL-Zertifikate Nginx Proxy Manager mit Lets Encrypt. npm.bstlr.eu Auto-Renewal ja. ## Wartung sudo apt update. sudo apt upgrade -y. docker compose pull. docker compose up -d. docker image prune -f. ## Neue App hinzufuegen mkdir -p ~/docker/app-name. docker compose up -d. NPM Proxy Host Domain app.bstlr.eu. SSL Request new certificate.`
+  },
+  rag: {
+    label: 'rag-chatbot-prompt.md',
+    text: `# RAG Chatbot Projektspezifikation ## Tech-Stack Frontend: React 18 + Vite + TailwindCSS. Backend: FastAPI + Python 3.11. RAG: LangChain. Vector Store: ChromaDB persistent. Metadata DB: SQLite. LLM: OpenAI API mehrere Modelle. Embeddings: OpenAI text-embedding-3-small. Auth: JWT PyJWT. Deployment: Docker + Docker Compose. ## Projektstruktur backend/app/__init__.py main.py config.py auth.py models.py database.py documents.py chat.py rag.py requirements.txt Dockerfile. frontend/src/main.jsx App.jsx api.js pages/Login.jsx Chat.jsx Documents.jsx. components/Header.jsx MessageList.jsx ChatInput.jsx DocumentList.jsx DocumentDetail.jsx UploadZone.jsx AdminPanel.jsx. ## Farbpalette brand.darkblue #0c446c Header. brand.blue #135a8a Buttons. brand.lightblue #5eb3df Borders. brand.pale #eaf5fb Backgrounds. ## Authentifizierung Login-Screen: Passwort-Feld kein Username. APP_PASSWORD. JWT 24h localStorage. Alle /api/* ausser /api/auth geschuetzt. ## Chat Tab Modellauswahl: gpt-4o gpt-4o-mini gpt-4-turbo gpt-3.5-turbo. Streaming: SSE Token-by-Token. Markdown-Rendering Code-Bloecke Listen. Quellenangabe unter Antworten. Chat-Historie Session-basiert. Neuer Chat Button. ## Dokumente Tab Upload-Zone: Drag Drop .md .pdf max 10MB. Dokumentenliste: Dateiname Groesse Chunk-Anzahl. Dokument-Details: Metadaten Chunk-Vorschau Aktionen. Admin-Bereich: Chunk-Groesse default 1000 Overlap default 200. ## Verarbeitungs-Pipeline Datei speichern /app/uploads/. Text extrahieren Markdown PDF via PyMuPDF. Text chunken RecursiveCharacterTextSplitter. Chunks embedden OpenAI text-embedding-3-small. ChromaDB speichern. SQLite Metadaten. ## API Auth POST /api/auth Body password Response token. GET /api/auth/verify Header Authorization Bearer. ## API Documents GET /api/documents. POST /api/documents multipart. GET /api/documents/id. DELETE /api/documents/id. POST /api/documents/id/reindex. ## API Chat POST /api/chat Body message model. Response SSE token source done. GET /api/chat/history. DELETE /api/chat/history. ## Docker Dockerfile Multi-Stage node 20 alpine npm ci npm run build. python 3.11 slim uvicorn host 0.0.0.0 port 8000. docker-compose volumes ./data:/app/data ./uploads:/app/uploads env_file networks proxy external. ## RAG Logic LangChain RecursiveCharacterTextSplitter. OpenAIEmbeddings text-embedding-3-small. Chroma persistent /app/data/chroma. Retrieval Top-3. Prompt System-Prompt Kontext Quellenhinweis.`
+  }
+};
+
+function generateChunks(cs, ov) {
+  const chunks = [];
+  const step = Math.max(cs - ov, 50);
+  for (const [key, src] of Object.entries(SOURCES)) {
+    const t = src.text;
+    let i = 0, idx = 0;
+    while (i < t.length) {
+      const end = Math.min(i + cs, t.length);
+      chunks.push({
+        doc: key,
+        docLabel: src.label,
+        idx: idx++,
+        chars: end - i,
+        content: t.slice(i, end),
+        ovChars: i > 0 && ov > 0 ? Math.min(ov, end - i) : 0
+      });
+      i += step;
+    }
+  }
+  return chunks;
+}
+
+let allChunks = [];
+let cbFilter = 'all';
+
+function updateChunkVis() {
+  const cs = parseInt(document.getElementById('chunk-size').value);
+  const ov = parseInt(document.getElementById('overlap').value);
+  document.getElementById('cs-val').textContent = cs;
+  document.getElementById('ov-val').textContent = ov;
+
+  const vis = document.getElementById('chunk-vis');
+  if (!vis) return;
+  const total = 2800, step = Math.max(cs - ov, 1);
+  const n = Math.min(Math.ceil((total - ov) / step), 7);
+  const w = Math.floor((330 - (n-1)*2) / n);
+  const ovW = ov > 0 ? Math.max(5, Math.floor(w * ov / cs)) : 0;
+  vis.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    if (i > 0 && ovW > 0) {
+      const ob = document.createElement('div');
+      ob.className = 'chunk-block cb-overlap';
+      ob.style.width = ovW + 'px';
+      ob.textContent = 'OV';
+      vis.appendChild(ob);
+    }
+    const cb = document.createElement('div');
+    cb.className = 'chunk-block cb-text';
+    cb.style.width = (w - (i > 0 ? ovW : 0)) + 'px';
+    cb.textContent = 'C' + (i+1);
+    vis.appendChild(cb);
+  }
+  if (Math.ceil((total - ov) / step) > 7) {
+    const m = document.createElement('div');
+    m.style.cssText = 'line-height:28px;font-size:11px;color:var(--muted2);padding:0 4px;';
+    m.textContent = '+' + (Math.ceil((total - ov) / step) - 7);
+    vis.appendChild(m);
+  }
+
+  // show reindex notice
+  const n2 = document.getElementById('reindex-notice');
+  if (n2) n2.classList.add('show');
+}
+
+function reindexAll() {
+  const cs = parseInt(document.getElementById('chunk-size').value);
+  const ov = parseInt(document.getElementById('overlap').value);
+  allChunks = generateChunks(cs, ov);
+  document.getElementById('reindex-notice').classList.remove('show');
+
+  const sc = allChunks.filter(c => c.doc === 'server').length;
+  const rc = allChunks.filter(c => c.doc === 'rag').length;
+  document.getElementById('dc-server').textContent = sc + ' chunks';
+  document.getElementById('dc-rag').textContent = rc + ' chunks';
+  document.getElementById('total-chunks-stat').textContent = allChunks.length;
+  document.getElementById('cb-meta').textContent = allChunks.length + ' Chunks \u00b7 chunk_size=' + cs + ' \u00b7 overlap=' + ov;
+
+  renderCbList();
+  showToast('Indexierung abgeschlossen: ' + allChunks.length + ' Chunks erstellt.');
+}
+
+function setCbFilter(f, btn) {
+  cbFilter = f;
+  document.querySelectorAll('.doc-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCbList();
+}
+
+function renderCbList() {
+  const list = document.getElementById('cb-list');
+  const filtered = cbFilter === 'all' ? allChunks : allChunks.filter(c => c.doc === cbFilter);
+  document.getElementById('cb-showing').textContent = filtered.length + ' von ' + allChunks.length;
+
+  if (!filtered.length) {
+    list.innerHTML = '<div style="padding:24px;text-align:center;font-size:13px;color:var(--muted2);">Keine Chunks vorhanden.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map((c, i) => {
+    const preview = c.content.length > 200
+      ? c.content.slice(0, 200).replace(/[<>&]/g, ch => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch])) + ' \u2026'
+      : c.content.replace(/[<>&]/g, ch => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch]));
+    const ovBadge = c.ovChars > 0 ? `<span class="cb-ov-tag">OV ${c.ovChars}z</span>` : '';
+    return `<div class="cb-row" onclick="openChunkModal(${allChunks.indexOf(c)})">
+      <div class="cb-gutter">
+        <span class="cb-idx">#${c.idx+1}</span>
+        <span class="cb-chars">${c.chars}z</span>
+      </div>
+      <div class="cb-content">
+        <div><span class="cb-doc-tag">${c.docLabel}</span>${ovBadge}</div>
+        <div>${preview}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Chunk modal
+function openChunkModal(idx) {
+  const c = allChunks[idx];
+  if (!c) return;
+  document.getElementById('modal-title').textContent = 'Chunk #' + (c.idx + 1);
+  document.getElementById('modal-doc-tag').textContent = c.docLabel;
+  document.getElementById('modal-meta').innerHTML = `
+    <span class="file-badge">${c.chars} Zeichen</span>
+    <span class="file-badge">Index ${c.idx + 1} / ${allChunks.filter(x => x.doc === c.doc).length}</span>
+    ${c.ovChars > 0 ? `<span class="cb-ov-tag">Overlap ${c.ovChars}z</span>` : ''}
+  `;
+  const escaped = c.content.replace(/[<>&]/g, ch => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch]));
+  document.getElementById('modal-text').innerHTML = escaped;
+  const ovSection = document.getElementById('modal-ov-section');
+  if (c.ovChars > 0) {
+    const ovText = c.content.slice(0, c.ovChars).replace(/[<>&]/g, ch => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch]));
+    document.getElementById('modal-ov-text').innerHTML = ovText;
+    ovSection.style.display = 'block';
+  } else {
+    ovSection.style.display = 'none';
+  }
+  document.getElementById('chunk-modal').classList.add('open');
+}
+
+function closeChunkModal(e) {
+  if (!e || e.target === document.getElementById('chunk-modal')) {
+    document.getElementById('chunk-modal').classList.remove('open');
+  }
+}
+
+// Collapsible panels
+function togglePanel(id) {
+  const body = document.getElementById('body-' + id);
+  const btn  = document.getElementById('toggle-' + id);
+  if (!body) return;
+  const collapsed = body.classList.toggle('collapsed');
+  if (btn) btn.classList.toggle('collapsed', collapsed);
+}
+
+// Login
+function doLogin() {
+  const pw = document.getElementById('pw-input').value;
+  if (!pw) { document.getElementById('pw-input').focus(); return; }
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'flex';
+  updateChunkVis();
+  reindexAll();
+}
+
+// Tab switch
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-chat').style.display = name === 'chat' ? 'flex' : 'none';
+  document.getElementById('tab-docs').style.display = name === 'docs' ? 'flex' : 'none';
+}
+
+// Score explanation toggle
+function toggleExpl(btn, name) {
+  const box = document.getElementById('ex-' + name);
+  const wasOpen = box.classList.contains('open');
+  document.querySelectorAll('.score-explanation').forEach(b => b.classList.remove('open'));
+  document.querySelectorAll('.info-btn').forEach(b => b.classList.remove('active'));
+  if (!wasOpen) {
+    box.classList.add('open');
+    btn.classList.add('active');
+  }
+}
+
+// Demo chat
+const demoAnswers = [
+  {
+    q: ["ssl","zertifikat","https","tls","nginx","lets encrypt"],
+    a: "Die SSL-Zertifikate werden durch den Nginx Proxy Manager mit Let's Encrypt verwaltet. Fuer die Domain npm.bstlr.eu ist Auto-Renewal aktiviert. Der NPM lauscht auf Port 443 fuer HTTPS-Traffic und leitet Anfragen per Reverse Proxy an die internen Container weiter.",
+    scores: { faithfulness: 0.94, relevancy: 0.91, precision: 0.78, recall: 0.82 },
+    chunks: [
+      { num: "#1", doc: "server-dokumentation.md", sim: 0.94, text: "\"Verwaltet durch Nginx Proxy Manager mit Let's Encrypt. npm.bstlr.eu | Auto-Renewal: ja ...\"" },
+      { num: "#2", doc: "server-dokumentation.md", sim: 0.88, text: "\"| 443 | 443 | 0.0.0.0 | Compose-Datei: /home/srvworker/docker/nginx-proxy-manager ...\"" },
+      { num: "#3", doc: "server-dokumentation.md", sim: 0.61, text: "\"sudo ufw allow PORT/tcp | sudo ufw delete allow PORT/tcp ...\"" }
+    ]
+  },
+  {
+    q: ["docker","container","compose","app","hinzufuegen"],
+    a: "Neue Apps werden unter /home/srvworker/docker/<app-name> angelegt. Die docker-compose.yml definiert den Service mit dem externen proxy-Netzwerk. Anschliessend wird im Nginx Proxy Manager ein Proxy Host fuer die jeweilige Subdomain eingerichtet.",
+    scores: { faithfulness: 0.89, relevancy: 0.87, precision: 0.82, recall: 0.70 },
+    chunks: [
+      { num: "#1", doc: "server-dokumentation.md", sim: 0.93, text: "\"mkdir -p ~/docker/app-name | docker compose up -d | NPM Proxy Host einrichten ...\"" },
+      { num: "#2", doc: "server-dokumentation.md", sim: 0.86, text: "\"image: <image> | container_name: <app-name> | restart: unless-stopped | networks: - proxy ...\"" },
+      { num: "#3", doc: "rag-chatbot-prompt.md", sim: 0.72, text: "\"Deployment: Docker + Docker Compose | volumes: ./data:/app/data ./uploads:/app/uploads ...\"" }
+    ]
+  }
+];
+
+function getDemo(msg) {
+  const m = msg.toLowerCase();
+  for (const d of demoAnswers) { if (d.q.some(k => m.includes(k))) return d; }
+  return {
+    a: "Basierend auf den indexierten Dokumenten konnte ich keine direkte Antwort finden. Die Dokumente enthalten Server-Konfigurationsdaten fuer bstlr.eu sowie eine RAG-Chatbot-Spezifikation. Bitte prazisiere deine Frage.",
+    scores: { faithfulness: 0.55, relevancy: 0.62, precision: 0.48, recall: 0.52 },
+    chunks: [
+      { num: "#1", doc: "server-dokumentation.md", sim: 0.51, text: "\"Hostname: ubuntu | OS: Ubuntu 22.04 LTS | IPv4: 87.106.83.40 | Domain: bstlr.eu ...\"" },
+      { num: "#2", doc: "rag-chatbot-prompt.md",   sim: 0.44, text: "\"FastAPI + Python 3.11 | LangChain | ChromaDB | SQLite ...\"" },
+      { num: "#3", doc: "server-dokumentation.md", sim: 0.38, text: "\"Backups: (Noch einzurichten) | tar -czvf backup-npm-$(date +%Y%m%d).tar.gz ...\"" }
+    ]
+  };
+}
+
+function scoreClass(v) { return v >= 0.8 ? 'high' : v >= 0.6 ? 'mid' : 'low'; }
+
+let sending = false;
+function sendMsg() {
+  if (sending) return;
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim(); if (!msg) return;
+  input.value = ''; sending = true;
+  const msgs = document.getElementById('messages');
+  const uDiv = document.createElement('div');
+  uDiv.className = 'msg user';
+  uDiv.innerHTML = `<span class="msg-label">Du</span><div class="msg-bubble">${msg.replace(/</g,'&lt;')}</div>`;
+  msgs.appendChild(uDiv);
+  const think = document.createElement('div');
+  think.className = 'msg bot';
+  think.innerHTML = `<span class="msg-label">Assistent</span><div class="thinking-indicator"><div class="dots"><span></span><span></span><span></span></div></div>`;
+  msgs.appendChild(think);
+  msgs.scrollTop = msgs.scrollHeight;
+  const demo = getDemo(msg);
+  setTimeout(() => {
+    think.innerHTML = `<span class="msg-label">Assistent</span><div class="msg-bubble">${demo.a}</div><div class="msg-source">Quelle: ${demo.chunks[0].doc}</div>`;
+    msgs.scrollTop = msgs.scrollHeight;
+    showEval(demo); sending = false;
+  }, 1400);
+}
+
+let currentEvalChunks = [];
+
+function showEval(demo) {
+  document.getElementById('eval-empty').style.display = 'none';
+  document.getElementById('eval-content').style.display = 'block';
+  const s = demo.scores;
+  ['faithfulness','relevancy','precision','recall'].forEach((n, i) => {
+    const v = [s.faithfulness, s.relevancy, s.precision, s.recall][i];
+    document.getElementById('sc-'+n).className = 'score-card ' + scoreClass(v);
+    document.getElementById('sv-'+n).textContent = v.toFixed(2);
+    document.getElementById('sb-'+n).style.width = Math.round(v*100) + '%';
+  });
+  currentEvalChunks = demo.chunks;
+  document.getElementById('eval-chunks-list').innerHTML = demo.chunks.map((c, i) => `
+    <div class="chunk-item" onclick="openEvalChunkModal(${i})">
+      <div class="chunk-meta">
+        <span class="chunk-num">${c.num}</span>
+        <span class="chunk-doc">${c.doc}</span>
+        <span class="chunk-score">sim ${c.sim.toFixed(2)}</span>
+      </div>
+      <div class="chunk-text">${c.text}</div>
+    </div>`).join('');
+  document.getElementById('eval-pane').scrollTop = 0;
+}
+
+function openEvalChunkModal(i) {
+  const c = currentEvalChunks[i];
+  if (!c) return;
+  document.getElementById('modal-title').textContent = 'Chunk ' + c.num;
+  document.getElementById('modal-doc-tag').textContent = c.doc;
+  document.getElementById('modal-meta').innerHTML = `
+    <span class="file-badge">Retrieval-Chunk</span>
+    <span class="file-badge">Cosine-Similaritat: ${c.sim.toFixed(2)}</span>
+  `;
+  const fullText = c.text.replace(/^"|"$/g, '').replace(/\.\.\."?$/, '');
+  document.getElementById('modal-text').innerHTML = fullText.replace(/[<>&]/g, ch => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch]));
+  document.getElementById('modal-ov-section').style.display = 'none';
+  document.getElementById('chunk-modal').classList.add('open');
+}
+
+function clearChat() {
+  document.getElementById('messages').innerHTML = `<div class="msg bot"><span class="msg-label">Assistent</span><div class="msg-bubble">Neuer Chat gestartet. Was mochtest du wissen?</div></div>`;
+  document.getElementById('eval-empty').style.display = 'flex';
+  document.getElementById('eval-content').style.display = 'none';
+}
+
+function simulateUpload() { showToast('Dokument wird verarbeitet und indexiert...'); }
+
+function deleteDoc(btn, name) {
+  const row = btn.closest('.doc-item');
+  if (!row) return;
+  row.style.transition = 'opacity 0.2s, max-height 0.25s';
+  row.style.overflow = 'hidden';
+  row.style.opacity = '0';
+  row.style.maxHeight = '0';
+  row.style.padding = '0';
+  setTimeout(() => row.remove(), 260);
+  showToast(name + ' wurde geloscht.', true);
+}
+
+let toastTimer;
+function showToast(msg, danger) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = danger ? 'var(--red)' : 'var(--navy)';
+  t.style.opacity = '1';
+  t.style.transform = 'translateX(-50%) translateY(0)';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    t.style.opacity = '0';
+    t.style.transform = 'translateX(-50%) translateY(20px)';
+  }, 2800);
+}
+</script>
+</body>
+</html>
